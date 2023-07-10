@@ -50,6 +50,26 @@ class reorderLibOperator:
         _reorderLib.addLba(ctypes.c_int(lba),1)
         return
 
+    def getDistance(self, curr_lba, new_lba):
+        global _reorderLib
+        currSg=(ctypes.c_int*1)()
+        pCurrSg = ctypes.cast(currSg, ctypes.POINTER(ctypes.c_int))
+        currTrack=(ctypes.c_int*1)()
+        pCurrTrack = ctypes.cast(currTrack, ctypes.POINTER(ctypes.c_int))
+        _reorderLib.getPhyFromLba(ctypes.c_int(curr_lba), pCurrSg, pCurrTrack)
+
+        newSg=(ctypes.c_int*1)()
+        pNewSg = ctypes.cast(newSg, ctypes.POINTER(ctypes.c_int))
+        newTrack=(ctypes.c_int*1)()
+        pNewTrack = ctypes.cast(newTrack, ctypes.POINTER(ctypes.c_int))
+        _reorderLib.getPhyFromLba(ctypes.c_int(new_lba), pNewSg, pNewTrack)
+
+        distance=(ctypes.c_int*1)()
+        pDistance = ctypes.cast(distance, ctypes.POINTER(ctypes.c_int))
+
+        _reorderLib.getDistance(ctypes.c_int(currSg),ctypes.c_int(currTrack),ctypes.c_int(newSg),ctypes.c_int(newTrack), pDistance)
+        return distance[0]
+
     def selectTarget(self):
         global _reorderLib
         targetLba=(ctypes.c_int*1)()

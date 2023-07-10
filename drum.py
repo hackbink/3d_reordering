@@ -257,7 +257,7 @@ def update(frame):
         reorderOperator.addLba(newLba,1)
 
 # Before starting the animation, process about half of the entries so that the animation can start in the middle.
-half_points=num_points>>1
+half_points=num_points-100
 for k in range(1, half_points):
     targetLba,distance=reorderOperator.selectTarget()
     target_index=np.where(lbas==targetLba)[0]
@@ -285,10 +285,12 @@ ax = fig.add_subplot(111, projection='3d')
 
 numOfFrames=numOfSgs*frames_per_sg
 # Create the animation
-ani = animation.FuncAnimation(fig, update, frames=numOfFrames, interval=0) # increase frame to avoid resetting/repeating
+ani = animation.FuncAnimation(fig, update, frames=numOfFrames, interval=0, save_count=1500) # increase frame to avoid resetting/repeating  
+
 # Uncomment the following line to save animated gif.
-# ani.save('animation.gif', writer='imagemagick', fps=30)
+ani.save('animation.gif', writer='imagemagick', fps=30)
 
 # Display the animation
 plt.show()
+
 

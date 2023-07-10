@@ -12,11 +12,22 @@
 #define MIN(x,y) (((x) >= (y)) ? (y) : (x))
 
 // Ridiculously simple disk format. Single head with no ZBR. No split sectors.
+// It seems that this model results average 425 SG per IO.
 #define NUMBER_OF_SG 		(360)
+#define SEEK_TIME_LIMIT		(4*NUMBER_OF_SG)
 #define NUMBER_OF_TRACKS	(5000)
-#define BLOCKS_PER_SG		(10)
+#define BLOCKS_PER_SG		(100)
 #define	TRACK_SKEW			(50)
-#define NUMBER_OF_BLOCKS	(NUMBER_OF_SG*NUMBER_OF_TRACKS*BLOCKS_PER_SG)	// 18000000 blocks
+#define NUMBER_OF_BLOCKS	(NUMBER_OF_SG*NUMBER_OF_TRACKS*BLOCKS_PER_SG)	// 180000000 blocks
+#define NUMBER_OF_REORDERED (5000)
+
+// Reordering schemes
+#define LBA_SAWTOOTH_REORDERING         (0) // Reorder only based on LBA, not considering angular or track
+#define SHORTEST_DIST                   (1) // Reorder by finding the local optimal, i.e. shortest distance from the current position
+#define SHORTEST_DIST_AND_LBA           (2) // Reorder by selecting between the local optimal & the one with higher LBA than the current
+#define SHORTEST_DIST_WITHIN_RANGE      (3) // Reorder by finding the local optimal within a range
+#define PATH_BUILDING_FROM_LBA          (4) // Reorder by building reordered list incrementally
+#define SELECTED_REORDERING             (SHORTEST_DIST_WITHIN_RANGE)
 
 //-----------------------------------------------------------
 // Structure definitions
@@ -31,6 +42,7 @@ typedef struct segment {
     unsigned        numberOfBlocks;
     unsigned        sg;
     unsigned        track;
+	bool			reordered;
 } segment_t;
 
 typedef struct tavl_node {
@@ -66,7 +78,18 @@ typedef struct cManagement {
 	unsigned	currentSg;
 	unsigned	currentTrack;
 	unsigned	currentLba;
+    unsigned    maxTrackRange;
+    unsigned    maxBacktrack;
 } cManagement_t;
+
+typedef struct dpReorder {
+    segList_t   reordered;
+	segment_t	*lbaRangeFirst;
+	segment_t	*lbaRangeLast;
+	unsigned	totalReordered;
+	unsigned	totalDist;
+	unsigned	lastLba;
+} dpReorder_t;
 
 //-----------------------------------------------------------
 // Global variables
@@ -75,6 +98,7 @@ extern	segment_t       *pSegmentPool;
 extern	tavl_node_t     *pNodePool;
 extern	tavl_t 			*pSgTavl;
 extern	cManagement_t   cacheMgmt;
+extern  dpReorder_t		dpReorder;
 
 //-----------------------------------------------------------
 // Functions
@@ -135,6 +159,20 @@ extern	void insertBefore(tavl_node_t *pNode, tavl_node_t *pTarget);
  *  @return None
  */
 extern	void insertAfter(tavl_node_t *pNode, tavl_node_t *pTarget);
+
+/**
+ *  @brief  Inserts the given segment prior to the target.
+ *  @param  segment_t *pSeg - the segment to be inserted, segment_t *pTarget - target segment
+ *  @return None
+ */
+extern	void insertPriorTo(segment_t *pSeg, segment_t *pTarget);
+
+/**
+ *  @brief  Inserts the given segment next to the target.
+ *  @param  segment_t *pSeg - the segment to be inserted, segment_t *pTarget - target segment
+ *  @return None
+ */
+extern	void insertNextTo(segment_t *pSeg, segment_t *pTarget);
 
 /**
  *  @brief  Returns the heigh of the given node
@@ -277,6 +315,15 @@ extern	void getPhyFromLba(unsigned lba, unsigned *pSg, unsigned *pTrack);
  *  @return None
  */
 extern	void addLba(unsigned lba, unsigned num_of_blocks);
+
+/**
+ *  @brief  Get distance (in number of SGs) from the startSg, startTrack to the pTargetNode
+ *  @param  unsigned startSg - starting SG, unsigned startTrack- starting track, 
+ *			unsigned targetSg - target SG, unsigned targetTrack- target track, 
+ *			unsigned *pDistance - pointer for the distance
+ *  @return None
+ */
+extern	void getDistance(unsigned startSg, unsigned startTrack, unsigned targetSg, unsigned targetTrack, unsigned *pDistance);
 
 /**
  *  @brief  Search the target from the current location set in cacheMgmt.
